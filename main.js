@@ -4,7 +4,6 @@
 
 import {KNNImageClassifier} from 'deeplearn-knn-image-classifier';
 import * as dl from 'deeplearn';
-import { writeFile } from "fs";
 
 
 // Webcam Image size. Must be 227. 
@@ -363,13 +362,9 @@ class Main {
         this.knn.addImage(image, this.training)
         let imageJson = JSON.stringify(image);
         console.log(imageJson);
-        // Got this from:
-        // https://stackoverflow.com/questions/45148833/write-json-object-to-json-file-in-javascript
-        writeFile(`${image.id}.json`, imageJson, (error) => {
-          if (error) {
-            throw error;
-          }
-        });
+        // Idea: base64encode image object into a string here,
+        // then write it to localStorage with:
+        // localStorage.setItem(`${image.id}`, encodedStr);
       }
 
       const exampleCount = this.knn.getClassExampleCount()
