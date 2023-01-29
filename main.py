@@ -12,7 +12,7 @@ model = load_model("keras_Model.h5", compile=False)
 class_names = open("labels.txt", "r").readlines()
 
 # CAMERA can be 0 or 1 based on default camera of your computer
-camera = cv2.VideoCapture(1)
+camera = cv2.VideoCapture(0)
 output_text = "Placeholder"
 
 while True:
@@ -24,10 +24,13 @@ while True:
 
     # gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     new_text = cv2.putText(image, output_text, (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 3)
+    # Resize the window to 600x600 pixels
+    cv2.namedWindow("Webcam Image", cv2.WINDOW_NORMAL)
+    cv2.resizeWindow("Webcam Image", 1300, 700)
     # cv2.imwrite(image, new_text)
     # Show the image in a window
     cv2.imshow("Webcam Image", image)
-
+    
     # Make the image a numpy array and reshape it to the models input shape.
     image = np.asarray(image, dtype=np.float32).reshape(1, 224, 224, 3)
 
@@ -54,3 +57,5 @@ while True:
 
 camera.release()
 cv2.destroyAllWindows()
+
+
