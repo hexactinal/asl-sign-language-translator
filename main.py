@@ -1,61 +1,80 @@
-from keras.models import load_model  # TensorFlow is required for Keras to work
-import cv2  # Install opencv-python
+import cv2
 import numpy as np
+import os
+from matplotlib import pyplot as plt
+import time
+import mediapipe as mp
 
-# Disable scientific notation for clarity
-np.set_printoptions(suppress=True)
+# pressing Esc or q to quit
+QUIT_BUTTONS = set([
+    27, # ASCII Esc
+    113 # ASCII 'q'
+])
 
-# Load the model
-model = load_model("keras_Model.h5", compile=False)
+def mediapipe_detection(image, model):
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB) # COLOR CONVERSION BGR 2 RGB
+    image.flags.writeable = False                  # Image is no longer writeable
+    results = model.process(image)                 # Make prediction
+    image.flags.writeable = True                   # Image is now writeable 
+    image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR) # COLOR COVERSION RGB 2 BGR
+    return image, results
 
-# Load the labels
-class_names = open("labels.txt", "r").readlines()
+def draw_landmarks(image, results):
+    mp_drawing.draw_landmarks(image, results.face_landmarks, mp_holistic.FACEMESH_TESSELATION) # Draw face connections
+    mp_drawing.draw_landmarks(image, results.pose_landmarks, mp_holistic.POSE_CONNECTIONS) # Draw pose connections
+    mp_drawing.draw_landmarks(image, results.left_hand_landmarks, mp_holistic.HAND_CONNECTIONS) # Draw left hand connections
+    mp_drawing.draw_landmarks(image, results.right_hand_landmarks, mp_holistic.HAND_CONNECTIONS) # Draw right hand connections
 
-# CAMERA can be 0 or 1 based on default camera of your computer
-camera = cv2.VideoCapture(0)
-output_text = "Placeholder"
+def draw_styled_landmarks(image, results):
+    # Draw face connections
+    mp_drawing.draw_landmarks(image, results.face_landmarks, mp_holistic.FACEMESH_TESSELATION, 
+                             mp_drawing.DrawingSpec(color=(80,110,10), thickness=1, circle_radius=1), 
+                             mp_drawing.DrawingSpec(color=(80,256,121), thickness=1, circle_radius=1)
+                             ) 
+    # Draw pose connections
+    mp_drawing.draw_landmarks(image, results.pose_landmarks, mp_holistic.POSE_CONNECTIONS,
+                             mp_drawing.DrawingSpec(color=(80,22,10), thickness=2, circle_radius=4), 
+                             mp_drawing.DrawingSpec(color=(80,44,121), thickness=2, circle_radius=2)
+                             ) 
+    # Draw left hand connections
+    mp_drawing.draw_landmarks(image, results.left_hand_landmarks, mp_holistic.HAND_CONNECTIONS, 
+                             mp_drawing.DrawingSpec(color=(121,22,76), thickness=2, circle_radius=4), 
+                             mp_drawing.DrawingSpec(color=(121,44,250), thickness=2, circle_radius=2)
+                             ) 
+    # Draw right hand connections  
+    mp_drawing.draw_landmarks(image, results.right_hand_landmarks, mp_holistic.HAND_CONNECTIONS, 
+                             mp_drawing.DrawingSpec(color=(245,117,66), thickness=2, circle_radius=4), 
+                             mp_drawing.DrawingSpec(color=(245,66,230), thickness=2, circle_radius=2)
+                             )
 
-while True:
-    # Grab the webcamera's image.
-    ret, image = camera.read()
+mp_holistic = mp.solutions.holistic # holistic model
+mp_drawing = mp.solutions.drawing_utils # Drawing utilities
 
-    # Resize the raw image into (224-height,224-width) pixels
-    image = cv2.resize(image, (224, 224), interpolation=cv2.INTER_AREA)
+cap = cv2.VideoCapture(0)
+# Set mediapipe model 
+with mp_holistic.Holistic(min_detection_confidence=0.5, min_tracking_confidence=0.5) as holistic:
+    while cap.isOpened():
 
-    # gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    new_text = cv2.putText(image, output_text, (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 3)
-    # Resize the window to 600x600 pixels
-    cv2.namedWindow("Webcam Image", cv2.WINDOW_NORMAL)
-    cv2.resizeWindow("Webcam Image", 1300, 700)
-    # cv2.imwrite(image, new_text)
-    # Show the image in a window
-    cv2.imshow("Webcam Image", image)
-    
-    # Make the image a numpy array and reshape it to the models input shape.
-    image = np.asarray(image, dtype=np.float32).reshape(1, 224, 224, 3)
+        # Read feed
+        ret, frame = cap.read()
 
-    # Normalize the image array
-    image = (image / 127.5) - 1
+        # Make detections
+        image, results = mediapipe_detection(frame, holistic)
+        print(results)
+        
+        # Draw landmarks
+        draw_styled_landmarks(image, results)
 
-    # Predicts the model
-    prediction = model.predict(image)
-    index = np.argmax(prediction)
-    class_name = class_names[index]
-    confidence_score = prediction[0][index]
+        # Show to screen
+        cv2.imshow('OpenCV Feed', image)
 
-    # Print prediction and confidence score
-    # print("Class:", class_name[2:], end="")
-    # print("Confidence Score:", str(np.round(confidence_score * 100))[:-2], "%")
-    output_text = class_name[2:]
+        # Break gracefully ... press Esc or 'q' to quit.
+        if cv2.waitKey(1) in QUIT_BUTTONS:
+            break
 
-    # Listen to the keyboard for presses.
-    keyboard_input = cv2.waitKey(1)
+    cap.release()
+    cv2.destroyAllWindows()
 
-    # 27 is the ASCII for the esc key on your keyboard.
-    if keyboard_input == 27:
-        break
-
-camera.release()
-cv2.destroyAllWindows()
-
-
+draw_landmarks(frame, results)
+plt.imshow(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+plt.show()
